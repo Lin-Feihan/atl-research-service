@@ -10,7 +10,7 @@ from docx.oxml.ns import qn
 from docx.shared import Inches, Pt
 from docx2pdf import convert
 
-from runtime.providers.base import ResearchResult
+from .providers.base import ResearchResult
 
 
 REPO_ROOT = (

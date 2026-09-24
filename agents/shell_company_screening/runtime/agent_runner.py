@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from runtime.prompt_builder import (
+from .prompt_builder import (
     build_prompt
 )
 
