@@ -1,7 +1,13 @@
-from datetime import datetime, timezone
+import json
 import uuid
+from datetime import datetime, timezone
 
-from fastapi import Body, Depends, FastAPI, HTTPException
+from fastapi import (
+    Body,
+    Depends,
+    FastAPI,
+    HTTPException,
+)
 from fastapi.responses import JSONResponse
 
 from .auth import require_service_token
@@ -9,9 +15,13 @@ from .database import (
     create_run_record,
     get_run_record,
     init_database,
+    update_run_status,
 )
 from .registry import get_manifest
-from .validation import validate_and_build_settings
+from .runner import start_run_thread
+from .validation import (
+    validate_and_build_settings,
+)
 
 
 app = FastAPI(
@@ -52,43 +62,67 @@ def create_run(
     body: dict = Body(...),
 ):
     agent_id = body.get("agent_id")
-    submitted_settings = body.get("settings")
+    submitted_settings = body.get(
+        "settings"
+    )
 
     field_errors = {}
 
-    if not isinstance(agent_id, str) or not agent_id:
-        field_errors["agent_id"] = "required"
+    if (
+        not isinstance(agent_id, str)
+        or not agent_id
+    ):
+        field_errors[
+            "agent_id"
+        ] = "required"
 
-    if not isinstance(submitted_settings, dict):
-        field_errors["settings"] = "required"
+    if not isinstance(
+        submitted_settings,
+        dict,
+    ):
+        field_errors[
+            "settings"
+        ] = "required"
 
     if field_errors:
         return JSONResponse(
             status_code=422,
             content={
-                "detail": "validation failed",
-                "field_errors": field_errors,
+                "detail":
+                    "validation failed",
+                "field_errors":
+                    field_errors,
             },
         )
 
-    manifest_data = get_manifest(agent_id)
+    manifest_data = get_manifest(
+        agent_id
+    )
 
-    settings, errors = validate_and_build_settings(
-        agent_id,
-        manifest_data,
-        submitted_settings,
+    settings, errors = (
+        validate_and_build_settings(
+            agent_id,
+            manifest_data,
+            submitted_settings,
+        )
     )
 
     if errors:
         return JSONResponse(
             status_code=422,
             content={
-                "detail": "validation failed",
-                "field_errors": errors,
+                "detail":
+                    "validation failed",
+                "field_errors":
+                    errors,
             },
         )
 
-    run_id = "run_" + uuid.uuid4().hex
+    run_id = (
+        "run_"
+        + uuid.uuid4().hex
+    )
+
     created_at = utc_now()
 
     create_run_record(
@@ -99,9 +133,37 @@ def create_run(
         created_at=created_at,
     )
 
+    try:
+        update_run_status(
+            run_id=run_id,
+            status="running",
+        )
+
+        start_run_thread(
+            run_id
+        )
+
+    except Exception:
+        update_run_status(
+            run_id=run_id,
+            status="failed",
+            error=(
+                "Failed to start "
+                "research worker"
+            ),
+            completed_at=utc_now(),
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "failed to start run"
+            ),
+        )
+
     return {
         "run_id": run_id,
-        "status": "queued",
+        "status": "running",
         "created_at": created_at,
     }
 
@@ -113,7 +175,9 @@ def create_run(
     ],
 )
 def run_status(run_id: str):
-    run = get_run_record(run_id)
+    run = get_run_record(
+        run_id
+    )
 
     if run is None:
         raise HTTPException(
@@ -122,15 +186,64 @@ def run_status(run_id: str):
         )
 
     response = {
-        "run_id": run["run_id"],
-        "status": run["status"],
-        "created_at": run["created_at"],
+        "run_id":
+            run["run_id"],
+        "status":
+            run["status"],
+        "created_at":
+            run["created_at"],
     }
 
     if (
         run["status"] == "failed"
         and run["error"]
     ):
-        response["error"] = run["error"]
+        response["error"] = (
+            run["error"]
+        )
 
     return response
+
+
+@app.get(
+    "/runs/{run_id}/result",
+    dependencies=[
+        Depends(require_service_token)
+    ],
+)
+def run_result(run_id: str):
+    run = get_run_record(
+        run_id
+    )
+
+    if run is None:
+        raise HTTPException(
+            status_code=404,
+            detail="run not found",
+        )
+
+    if run["status"] != "completed":
+        raise HTTPException(
+            status_code=409,
+            detail="run not completed",
+        )
+
+    if not run["result_json"]:
+        raise HTTPException(
+            status_code=500,
+            detail="result missing",
+        )
+
+    result = json.loads(
+        run["result_json"]
+    )
+
+    return {
+        "run_id":
+            run["run_id"],
+        "status":
+            "completed",
+        "completed_at":
+            run["completed_at"],
+        **result,
+    }

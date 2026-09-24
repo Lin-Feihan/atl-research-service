@@ -136,3 +136,32 @@ def update_run_status(
         )
 
         connection.commit()
+
+
+def save_run_result(
+    run_id,
+    result,
+    completed_at,
+):
+    with connect() as connection:
+        connection.execute(
+            """
+            UPDATE runs
+            SET status = ?,
+                completed_at = ?,
+                error = NULL,
+                result_json = ?
+            WHERE run_id = ?
+            """,
+            (
+                "completed",
+                completed_at,
+                json.dumps(
+                    result,
+                    ensure_ascii=False,
+                ),
+                run_id,
+            ),
+        )
+
+        connection.commit()
