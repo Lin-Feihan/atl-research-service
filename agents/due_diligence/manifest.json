@@ -1,0 +1,45 @@
+{
+  "agent_id": "due-diligence-agent",
+  "name": "Due Diligence Agent",
+  "description": "A Deep Research Agent for company due diligence, covering DD planning, key due diligence workstreams, risk assessment, valuation impact, and report generation.",
+  "category": "M&A Research",
+  "provider_note": "Runs on OpenAI / OpenRouter / Gemini / Perplexity Deep Research (configured server-side).",
+  "estimated_runtime_seconds": 600,
+  "max_runtime_seconds": 1800,
+  "output_formats": [
+    "markdown",
+    "docx",
+    "pdf",
+    "evidence_json"
+  ],
+  "settings_schema": {
+    "fields": [
+      {
+        "id": "target_company",
+        "label": "Target Company",
+        "type": "text",
+        "required": true,
+        "default": null,
+        "placeholder": "Company name, ticker, website, or other identifying information",
+        "description": "Name of the company to be investigated. A ticker, website, jurisdiction, or other identifying information may also be provided when needed to distinguish the target company."
+      },
+      {
+        "id": "research_cutoff_date",
+        "label": "Research Cut-off Date",
+        "type": "date",
+        "required": true,
+        "default": null,
+        "description": "Latest date up to which information may be considered in the due diligence research."
+      },
+      {
+        "id": "additional_context",
+        "label": "Additional Context",
+        "type": "longtext",
+        "required": false,
+        "default": null,
+        "placeholder": "Add transaction context, specific concerns, focus areas, or other relevant information",
+        "description": "Optional background, transaction context, specific concerns, focus areas, or other information that may help the agent interpret the due diligence task."
+      }
+    ]
+  }
+}

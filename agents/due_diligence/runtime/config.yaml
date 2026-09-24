@@ -1,0 +1,37 @@
+# Runtime configuration for the Due Diligence Agent
+
+agent:
+  name: "Due Diligence Agent"
+
+providers:
+
+  openai:
+    enabled: true
+    models:
+      - "o4-mini-deep-research"
+      - "o3-deep-research"
+    default_model: "o4-mini-deep-research"
+    poll_interval_seconds: 10
+
+  openrouter:
+    enabled: true
+    models:
+      - "perplexity/sonar-deep-research"
+      - "openai/o4-mini-deep-research"
+      - "openai/o3-deep-research"
+    default_model: "perplexity/sonar-deep-research"
+
+  gemini:
+    enabled: true
+    agent: "deep-research-preview-04-2026"
+    poll_interval_seconds: 10
+
+  perplexity:
+    enabled: true
+    preset: "deep-research"
+    timeout_seconds: 3600
+    max_retries: 3
+
+output:
+  directory: "output"
+  save_report: true
