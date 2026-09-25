@@ -5,7 +5,7 @@ HTTP service for exposing two Deep Research agents to Agentic Trading Lab (ATL):
 - `shell-company-screening`
 - `due-diligence-agent`
 
-The service uses FastAPI, background research threads, and SQLite persistence. It implements the ATL Research Agent integration contract, including the v1.1 usage reporting requirements.
+The service uses FastAPI, background research threads, and SQLite for run state. It implements the ATL Research Agent integration contract, including CommonStack support and v1.1 usage reporting.
 
 ## API
 
@@ -22,8 +22,6 @@ Every request must include:
 X-Service-Token: <service-token>
 ```
 
-Requests with a missing or invalid service token return HTTP `401`.
-
 ## Supported Agents
 
 ### Shell Company Screening Agent
@@ -34,8 +32,6 @@ Agent ID:
 shell-company-screening
 ```
 
-The agent identifies, screens, and evaluates listed shell companies as potential candidates for reverse mergers, reverse takeovers, and other M&A transactions.
-
 ### Due Diligence Agent
 
 Agent ID:
@@ -44,11 +40,9 @@ Agent ID:
 due-diligence-agent
 ```
 
-The agent conducts company due diligence, including DD planning, key due diligence workstreams, risk assessment, valuation impact, and report generation.
-
 ## Environment Variables
 
-### Required
+Required:
 
 ```text
 X_SERVICE_TOKEN
@@ -58,19 +52,19 @@ OPENAI_BASE_URL
 
 `X_SERVICE_TOKEN` authenticates requests from ATL to this service.
 
-`OPENAI_API_KEY` and `OPENAI_BASE_URL` are supplied by the ATL platform for its CommonStack OpenAI-compatible gateway.
+`OPENAI_API_KEY` and `OPENAI_BASE_URL` are supplied by the ATL platform for the CommonStack OpenAI-compatible gateway.
 
-Do not commit any secret values to this repository.
+Do not commit any of these values to the repository.
 
-### Optional
+Optional provider and runtime variables:
 
 ```text
-SQLITE_PATH
 RESEARCH_PROVIDER
 RESEARCH_MODEL
 OPENROUTER_API_KEY
 GEMINI_API_KEY
 PERPLEXITY_API_KEY
+SQLITE_PATH
 ```
 
 The default research provider is `openai`.
@@ -87,12 +81,23 @@ Install dependencies:
 python -m pip install -r requirements.txt
 ```
 
-Set the service token and platform-supplied CommonStack credentials:
+Set the service token:
 
 ```bash
 export X_SERVICE_TOKEN="<service-token>"
+```
+
+For a real CommonStack research run, also set the platform-supplied credentials:
+
+```bash
 export OPENAI_API_KEY="<platform-supplied-commonstack-key>"
 export OPENAI_BASE_URL="<platform-supplied-commonstack-base-url>"
+```
+
+Optionally specify the research provider:
+
+```bash
+export RESEARCH_PROVIDER="openai"
 ```
 
 Start the service:
@@ -101,7 +106,7 @@ Start the service:
 uvicorn service.app:app --host 0.0.0.0 --port 8000
 ```
 
-The local service will be available at:
+The local service is then available at:
 
 ```text
 http://127.0.0.1:8000
@@ -109,7 +114,7 @@ http://127.0.0.1:8000
 
 ## Manifest
 
-Example request:
+Example Shell Company Screening manifest request:
 
 ```bash
 curl \
@@ -117,7 +122,7 @@ curl \
   -H "X-Service-Token: <service-token>"
 ```
 
-For the Due Diligence Agent:
+Example Due Diligence manifest request:
 
 ```bash
 curl \
@@ -125,41 +130,47 @@ curl \
   -H "X-Service-Token: <service-token>"
 ```
 
-## Run Lifecycle
+An unknown `agent_id` returns HTTP 404.
 
-Create a research run with:
+## Creating a Run
 
-```text
-POST /runs
+Example:
+
+```bash
+curl -X POST \
+  "http://127.0.0.1:8000/runs" \
+  -H "X-Service-Token: <service-token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "agent_id": "due-diligence-agent",
+    "settings": {
+      "target_company": "Microsoft",
+      "research_cutoff_date": "2026-09-25",
+      "additional_context": "Integration test using public information."
+    }
+  }'
 ```
 
-Example request:
+A successful request immediately returns a unique `run_id` while the research continues in a background thread.
+
+Example response:
 
 ```json
 {
-  "agent_id": "due-diligence-agent",
-  "settings": {
-    "target_company": "Example Company",
-    "research_cutoff_date": "2026-09-25",
-    "additional_context": "Optional transaction context."
-  }
-}
-```
-
-A successful request immediately returns a unique run ID while the research continues in a background thread:
-
-```json
-{
-  "run_id": "run_example123",
+  "run_id": "run_abc123",
   "status": "running",
   "created_at": "2026-09-25T00:00:00Z"
 }
 ```
 
-Poll the run status with:
+## Run Status
 
-```text
-GET /runs/{run_id}
+Poll a run with:
+
+```bash
+curl \
+  "http://127.0.0.1:8000/runs/<run_id>" \
+  -H "X-Service-Token: <service-token>"
 ```
 
 Possible states are:
@@ -173,33 +184,27 @@ failed
 
 A failed run may also include a human-readable `error` field.
 
-After the run is completed, retrieve the result with:
+## Run Result
 
-```text
-GET /runs/{run_id}/result
+After a run reaches `completed`, retrieve the result with:
+
+```bash
+curl \
+  "http://127.0.0.1:8000/runs/<run_id>/result" \
+  -H "X-Service-Token: <service-token>"
 ```
 
-## Result Format
-
-A completed result contains:
-
-- Markdown research report
-- Usage information
-- Evidence data
-- DOCX artifact when available
-- PDF artifact when available
-
-Example structure:
+The v1.1 response includes:
 
 ```json
 {
-  "run_id": "run_example123",
+  "run_id": "run_abc123",
   "status": "completed",
   "completed_at": "2026-09-25T00:10:00Z",
-  "report_markdown": "# Research Report",
+  "report_markdown": "# Research Report\n\n...",
   "usage": {
     "provider": "commonstack",
-    "model": "example-model",
+    "model": "...",
     "input_tokens": 12345,
     "output_tokens": 678,
     "actual_cost_micro": 850000
@@ -211,7 +216,7 @@ Example structure:
     }
   },
   "evidence": {
-    "provider": "openai",
+    "provider": "...",
     "citations": [],
     "sources": [],
     "metadata": {}
@@ -219,9 +224,15 @@ Example structure:
 }
 ```
 
+`report_markdown` and `evidence` are required.
+
+DOCX and PDF artifacts are optional.
+
+Result reads are repeatable.
+
 ## Usage Reporting
 
-The ATL v1.1 contract requires each completed research result to include a `usage` object.
+ATL contract v1.1 requires each completed result to include a `usage` object.
 
 The service reports:
 
@@ -233,7 +244,11 @@ output_tokens
 actual_cost_micro
 ```
 
-When the OpenAI-compatible provider is routed through CommonStack, the reported provider is `commonstack`.
+When the OpenAI-compatible provider is routed through `OPENAI_BASE_URL`, the provider is reported as:
+
+```text
+commonstack
+```
 
 Token usage and model information are taken from the provider response when available.
 
@@ -243,55 +258,116 @@ Token usage and model information are taken from the provider response when avai
 $1 = 1 credit = 1,000,000 micro
 ```
 
-The platform uses this information for user credit settlement.
+The exact CommonStack cost field is captured from the provider response when available.
 
 ## Persistence
 
-Run state, settings, status, errors, and completed results are persisted in SQLite.
+Run state and completed results are stored in SQLite.
 
-The default local database path is:
+The default database path is:
 
 ```text
 data/atl_runs.db
 ```
 
-A custom location can be configured through:
+The current Render deployment uses the Free web service tier.
+
+Render Free uses an ephemeral local filesystem, so the local SQLite database may be lost if the service spins down, restarts, or is redeployed.
+
+ATL retrieves completed research results from this service and stores them in the platform database.
+
+The platform-side sweeper periodically polls active runs through:
 
 ```text
-SQLITE_PATH
+GET /runs/{run_id}
 ```
 
-For Render deployment, the intended persistent database path is:
+When a run reaches `completed`, ATL retrieves the result and stores it in the platform database.
 
-```text
-/var/data/atl_runs.db
-```
+Because ATL stores the completed result after retrieval, long-term persistence of completed reports is handled by the platform rather than by this service.
+
+A small theoretical loss window remains if the Render service is restarted before ATL retrieves a newly completed result.
+
+For stronger persistence in the future, the SQLite storage layer can be migrated to a persistent datastore such as Turso or a Render persistent disk.
 
 ## Output Files
 
-Each research run uses its own output directory.
+Each research run may generate:
 
-Markdown and evidence JSON are required outputs.
+```text
+Markdown report
+DOCX report
+PDF report
+Evidence JSON
+```
+
+Markdown and evidence JSON are required.
 
 DOCX and PDF are optional.
 
-PDF generation may be unavailable on Linux because the original PDF conversion path depends on Microsoft Word. Failure to generate PDF must not cause the research run itself to fail.
+PDF generation may be unavailable on Linux because the original PDF conversion path depends on Microsoft Word. Failure to generate a PDF must not cause the research run itself to fail.
 
-Binary artifacts returned by the API are Base64 encoded and limited to 5 MB each.
+Binary artifacts returned through the HTTP API are base64 encoded.
 
-## Authentication and Secrets
+Each binary artifact is limited to 5 MB.
 
-The service never intentionally logs or returns API keys, service tokens, or the configured CommonStack base URL.
+## Authentication
 
-The following values must be kept outside GitHub:
+All API requests must include:
+
+```text
+X-Service-Token
+```
+
+The supplied token is compared against:
 
 ```text
 X_SERVICE_TOKEN
-OPENAI_API_KEY
-OPENAI_BASE_URL
 ```
 
-They should be configured through environment variables locally and through secret environment variables on Render.
+Missing or invalid authentication returns:
+
+```json
+{
+  "detail": "unauthorized"
+}
+```
+
+Secrets must never be logged, echoed, or committed to GitHub.
+
+The service also redacts configured provider credentials and the CommonStack base URL from captured runtime errors.
+
+## Background Execution
+
+Research jobs run in background threads.
+
+`POST /runs` does not wait for Deep Research to finish.
+
+The lifecycle is:
+
+```text
+POST /runs
+    ↓
+running
+    ↓
+background research thread
+    ↓
+run_agent()
+    ↓
+save_report()
+    ↓
+completed / failed
+    ↓
+GET /runs/{run_id}/result
+```
+
+Research failures are captured and persisted as:
+
+```text
+failed
+```
+
+with a human-readable error message.
 
 ## Render Deployment
 
@@ -302,21 +378,13 @@ render.yaml
 .python-version
 ```
 
-The service uses Python 3.12.
+`.python-version` pins the service to Python 3.12.
 
-Render installs dependencies with:
+The current Render Blueprint uses the Free web service tier.
 
-```bash
-pip install -r requirements.txt
-```
+Deploy the repository as a Render Blueprint.
 
-The service starts with:
-
-```bash
-uvicorn service.app:app --host 0.0.0.0 --port $PORT
-```
-
-Configure the following environment variables in Render:
+During deployment, configure these secret environment variables:
 
 ```text
 X_SERVICE_TOKEN
@@ -324,19 +392,39 @@ OPENAI_API_KEY
 OPENAI_BASE_URL
 ```
 
-For persistent SQLite storage, the deployment configuration uses:
+Use:
 
 ```text
-SQLITE_PATH=/var/data/atl_runs.db
+OPENAI_API_KEY = ATL-supplied CommonStack key
+OPENAI_BASE_URL = ATL-supplied CommonStack base URL
 ```
 
-with `/var/data` mounted as persistent storage.
+Do not store their real values in:
 
-Never place real credentials directly in `render.yaml` or any committed source file.
+```text
+render.yaml
+README.md
+Git history
+source code
+```
+
+The Render service starts with:
+
+```bash
+uvicorn service.app:app --host 0.0.0.0 --port $PORT
+```
+
+After deployment, Render provides a public HTTPS base URL such as:
+
+```text
+https://atl-research-service.onrender.com
+```
+
+This base URL, together with the `X-Service-Token`, is delivered to the ATL platform team.
 
 ## Verification
 
-The HTTP lifecycle should be verified for both agent IDs:
+Before final delivery, verify all four endpoint patterns for both agent IDs:
 
 ```text
 GET /manifest
@@ -345,18 +433,35 @@ GET /runs/{run_id}
 GET /runs/{run_id}/result
 ```
 
-At least one real end-to-end research run should be completed for each agent using the platform-supplied CommonStack credentials.
+At least one real end-to-end CommonStack research run should be completed for each agent:
 
-The final verification should confirm:
+```text
+shell-company-screening
+due-diligence-agent
+```
 
-- Manifest retrieval succeeds
-- Invalid authentication returns `401`
-- Required-field validation returns `422`
-- Research runs execute in the background
-- Run status reaches `completed` or reports a readable failure
-- Markdown report is non-empty
-- Evidence data is present
-- Usage information is present
-- Available binary artifacts decode correctly
-- Completed results can be retrieved repeatedly
-- Persisted runs remain queryable after service restart
+For each real verification run, retain the produced Markdown report and evidence JSON as test fixtures.
+
+The real CommonStack runs should also be used to verify the v1.1 usage fields, especially:
+
+```text
+model
+input_tokens
+output_tokens
+actual_cost_micro
+```
+
+## Security
+
+Never commit:
+
+```text
+CommonStack API keys
+CommonStack base URL
+X-Service-Token
+other provider API keys
+.env files
+generated private reports
+```
+
+Local runtime outputs and SQLite data should remain excluded through `.gitignore`.
