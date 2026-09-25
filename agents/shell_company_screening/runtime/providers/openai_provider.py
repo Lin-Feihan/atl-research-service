@@ -1,3 +1,4 @@
+import os
 import time
 
 from openai import OpenAI
@@ -200,8 +201,21 @@ class OpenAIDeepResearchProvider(
             10
         )
 
+        base_url = os.getenv(
+            "OPENAI_BASE_URL"
+        )
+
+        client_kwargs = {
+            "api_key": self.api_key
+        }
+
+        if base_url:
+            client_kwargs[
+                "base_url"
+            ] = base_url
+
         client = OpenAI(
-            api_key=self.api_key
+            **client_kwargs
         )
 
         try:

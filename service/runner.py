@@ -211,8 +211,113 @@ def encode_artifact(path):
     }
 
 
+def build_usage_payload(
+    research_result,
+    provider_name,
+):
+    metadata = (
+        getattr(
+            research_result,
+            "metadata",
+            {},
+        )
+        or {}
+    )
+
+    raw_usage = (
+        metadata.get("usage")
+        or {}
+    )
+
+    if not isinstance(
+        raw_usage,
+        dict,
+    ):
+        raw_usage = {}
+
+    input_tokens = (
+        raw_usage.get(
+            "input_tokens"
+        )
+        or raw_usage.get(
+            "prompt_tokens"
+        )
+        or 0
+    )
+
+    output_tokens = (
+        raw_usage.get(
+            "output_tokens"
+        )
+        or raw_usage.get(
+            "completion_tokens"
+        )
+        or 0
+    )
+
+    actual_cost_micro = (
+        raw_usage.get(
+            "actual_cost_micro"
+        )
+    )
+
+    if actual_cost_micro is None:
+        actual_cost_micro = (
+            metadata.get(
+                "actual_cost_micro"
+            )
+        )
+
+    if actual_cost_micro is None:
+        cost_usd = (
+            raw_usage.get(
+                "cost_usd"
+            )
+            or metadata.get(
+                "cost_usd"
+            )
+        )
+
+        if cost_usd is not None:
+            actual_cost_micro = round(
+                float(cost_usd)
+                * 1_000_000
+            )
+
+    reported_provider = (
+        "commonstack"
+        if (
+            provider_name == "openai"
+            and os.getenv(
+                "OPENAI_BASE_URL"
+            )
+        )
+        else provider_name
+    )
+
+    return {
+        "provider":
+            reported_provider,
+        "model":
+            metadata.get("model"),
+        "input_tokens":
+            int(input_tokens),
+        "output_tokens":
+            int(output_tokens),
+        "actual_cost_micro":
+            (
+                int(actual_cost_micro)
+                if actual_cost_micro
+                is not None
+                else None
+            ),
+    }
+
+
 def build_result_payload(
     report_paths,
+    research_result,
+    provider_name,
 ):
     markdown_path = (
         report_paths.get("markdown")
@@ -279,6 +384,11 @@ def build_result_payload(
     return {
         "report_markdown":
             report_markdown,
+        "usage":
+            build_usage_payload(
+                research_result,
+                provider_name,
+            ),
         "artifacts":
             artifacts,
         "evidence":
@@ -366,7 +476,9 @@ def run_research(run_id):
 
         result_payload = (
             build_result_payload(
-                report_paths
+                report_paths,
+                result,
+                provider_name,
             )
         )
 
