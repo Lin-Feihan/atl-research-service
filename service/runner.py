@@ -402,7 +402,8 @@ def safe_error_message(exc):
     secret_envs = list(
         PROVIDER_KEY_ENVS.values()
     ) + [
-        "X_SERVICE_TOKEN"
+        "X_SERVICE_TOKEN",
+        "OPENAI_BASE_URL",
     ]
 
     for env_name in secret_envs:
