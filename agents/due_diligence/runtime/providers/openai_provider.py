@@ -231,7 +231,7 @@ class OpenAIDeepResearchProvider(
                 tools=[
                     {
                         "type":
-                        "web_search_preview"
+                        "web_search"
                     }
                 ],
                 include=[
