@@ -224,49 +224,68 @@ class OpenAIDeepResearchProvider(
                 f"Using OpenAI model: {model}"
             )
 
-            response = client.responses.create(
-                model=model,
-                input=prompt,
-                background=True,
-                tools=[
+            request_kwargs = {
+                "model": model,
+                "input": prompt,
+                "tools": [
                     {
-                        "type":
-                        "web_search_preview"
+                        "type": "web_search"
                     }
                 ],
-                include=[
+                "include": [
                     "web_search_call.action.sources"
                 ],
+            }
+
+            # CommonStack returns /v1/responses synchronously.
+            # Native OpenAI keeps the existing background polling path.
+            if not base_url:
+                request_kwargs[
+                    "background"
+                ] = True
+
+            response = client.responses.create(
+                **request_kwargs
             )
 
-            while response.status in {
-                "queued",
-                "in_progress"
+            if not base_url:
+                while getattr(
+                    response,
+                    "status",
+                    None
+                ) in {
+                    "queued",
+                    "in_progress"
+                }:
+                    time.sleep(
+                        poll_interval
+                    )
+
+                    response = (
+                        client
+                        .responses
+                        .retrieve(
+                            response.id,
+                            include=[
+                                "web_search_call.action.sources"
+                            ],
+                        )
+                    )
+
+            status = getattr(
+                response,
+                "status",
+                None
+            )
+
+            if status not in {
+                None,
+                "completed"
             }:
-
-                time.sleep(
-                    poll_interval
-                )
-
-                response = (
-    client
-    .responses
-    .retrieve(
-        response.id,
-        include=[
-            "web_search_call.action.sources"
-        ],
-    )
-)
-
-            if (
-                response.status
-                != "completed"
-            ):
                 raise RuntimeError(
                     "OpenAI Deep Research "
                     f"ended with status: "
-                    f"{response.status}"
+                    f"{status}"
                 )
 
             report = getattr(
