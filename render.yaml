@@ -16,3 +16,6 @@ services:
 
       - key: OPENAI_BASE_URL
         sync: false
+
+      - key: RESEARCH_MODEL
+        value: openai/gpt-5.5
