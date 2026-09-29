@@ -6,4 +6,5 @@ perplexityai
 PyYAML
 python-docx
 docx2pdf
+pypandoc-binary==1.17
 httpx
