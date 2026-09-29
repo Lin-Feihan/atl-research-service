@@ -10,6 +10,10 @@ from docx.oxml.ns import qn
 from docx.shared import Inches, Pt
 from docx2pdf import convert
 
+from shared.report_export.docx_exporter import (
+    markdown_to_docx as shared_markdown_to_docx,
+)
+
 from .providers.base import ResearchResult
 
 
@@ -600,7 +604,6 @@ def save_docx(
     filename,
     output_directory="output"
 ):
-
     output_dir = (
         get_output_directory(
             output_directory
@@ -612,7 +615,7 @@ def save_docx(
         / filename
     )
 
-    markdown_to_docx(
+    shared_markdown_to_docx(
         report,
         path
     )
