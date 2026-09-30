@@ -438,11 +438,6 @@ def format_tables(doc):
 
     for table in doc.tables:
 
-        # Keep table structure visible and predictable
-        table.style = (
-            "Table Grid"
-        )
-
         set_table_borders(
             table
         )
@@ -476,40 +471,25 @@ def format_tables(doc):
                         WD_ALIGN_PARAGRAPH.LEFT
                     )
 
-                    paragraph.paragraph_format.space_before = (
-                        Pt(0)
-                    )
+                    paragraph.paragraph_format.space_before = Pt(0)
 
-                    paragraph.paragraph_format.space_after = (
-                        Pt(2)
-                    )
+                    paragraph.paragraph_format.space_after = Pt(2)
 
-                    paragraph.paragraph_format.line_spacing = (
-                        1.0
-                    )
+                    paragraph.paragraph_format.line_spacing = 1.0
 
                     for run in paragraph.runs:
 
-                        run.font.name = (
-                            "Arial"
-                        )
+                        run.font.name = "Arial"
 
-                        # Slightly smaller for wide tables
-                        run.font.size = (
-                            Pt(8.5)
-                            if wide
-                            else Pt(9)
-                        )
+                        if wide:
+                            run.font.size = Pt(8.5)
+                        else:
+                            run.font.size = Pt(9)
 
-        # ---------------------------------------------
         # Header row
-        # ---------------------------------------------
-
         if table.rows:
 
-            header_row = (
-                table.rows[0]
-            )
+            header_row = table.rows[0]
 
             set_repeat_table_header(
                 header_row
@@ -524,27 +504,16 @@ def format_tables(doc):
 
                 for paragraph in cell.paragraphs:
 
-                    paragraph.paragraph_format.space_after = (
-                        Pt(2)
-                    )
-
                     for run in paragraph.runs:
 
                         run.bold = True
 
-                        run.font.name = (
-                            "Arial"
-                        )
+                        run.font.name = "Arial"
 
-                        run.font.size = (
-                            Pt(8.5)
-                            if wide
-                            else Pt(9)
-                        )
-
-        # ---------------------------------------------
-        # Column-width heuristic
-        # ---------------------------------------------
+                        if wide:
+                            run.font.size = Pt(8.5)
+                        else:
+                            run.font.size = Pt(9)
 
         optimize_first_column(
             table
