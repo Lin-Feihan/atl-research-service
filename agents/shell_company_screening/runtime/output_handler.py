@@ -10,6 +10,10 @@ from docx.oxml.ns import qn
 from docx.shared import Inches, Pt
 from docx2pdf import convert
 
+from shared.report_export.docx_exporter import (
+    markdown_to_docx as shared_markdown_to_docx,
+)
+
 from .providers.base import ResearchResult
 
 
@@ -100,72 +104,19 @@ def save_markdown(
 
     return path
 
-
 def append_source_appendix(
     report,
     sources
 ):
     """
-    Append source metadata when citations
-    are available but not rendered inline.
+    Keep the report clean.
+
+    All discovered sources are preserved in
+    evidence.json. The report only contains
+    curated citations already included by the agent.
     """
 
-    if not sources:
-        return report
-
-    existing_urls = set(
-        re.findall(
-            r"https?://\S+",
-            report
-        )
-    )
-
-    appendix = [
-        "",
-        "",
-        "## Source Metadata Appendix",
-        "",
-        "The following sources were identified "
-        "during the research process.",
-        "",
-    ]
-
-    index = 1
-
-    for source in sources:
-
-        url = source.get(
-            "url"
-        )
-
-        if not url:
-            continue
-
-        if url in existing_urls:
-            continue
-
-        title = (
-            source.get("title")
-            or "Untitled source"
-        )
-
-        appendix.append(
-            f"{index}. {title} - {url}"
-        )
-
-        index += 1
-
-    if index == 1:
-        return report
-
-    return (
-        report
-        + "\n"
-        + "\n".join(
-            appendix
-        )
-    )
-
+    return report
 
 def save_evidence_json(
     result,
@@ -600,7 +551,6 @@ def save_docx(
     filename,
     output_directory="output"
 ):
-
     output_dir = (
         get_output_directory(
             output_directory
@@ -612,7 +562,7 @@ def save_docx(
         / filename
     )
 
-    markdown_to_docx(
+    shared_markdown_to_docx(
         report,
         path
     )
