@@ -1,5 +1,8 @@
 from datetime import date
 
+from acquisition_runtime.settings import SettingsValidationError, validate_settings
+from .acquisition import ACQUISITION_ROOTS
+
 
 RUNTIME_DEFAULTS = {
     "shell-company-screening": {
@@ -57,6 +60,12 @@ def validate_and_build_settings(
     manifest,
     submitted_settings,
 ):
+    if agent_id in ACQUISITION_ROOTS:
+        try:
+            return validate_settings(ACQUISITION_ROOTS[agent_id], submitted_settings), {}
+        except SettingsValidationError as exc:
+            return None, exc.errors
+
     if not isinstance(submitted_settings, dict):
         return None, {
             "settings": "must be object"

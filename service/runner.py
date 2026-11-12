@@ -33,6 +33,8 @@ from .database import (
     update_run_status,
 )
 
+from .acquisition import ACQUISITION_AGENTS, get_acquisition_provider
+
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 
@@ -72,6 +74,8 @@ AGENTS = {
     },
 }
 
+AGENTS.update(ACQUISITION_AGENTS)
+
 
 def utc_now():
     return (
@@ -84,6 +88,9 @@ def utc_now():
 def get_provider_for_agent(
     agent_id,
 ):
+    if agent_id in ACQUISITION_AGENTS:
+        return get_acquisition_provider(agent_id)
+
     spec = AGENTS[agent_id]
 
     provider_name = (
@@ -482,6 +489,9 @@ def run_research(run_id):
                 provider_name,
             )
         )
+
+        if agent_id in ACQUISITION_AGENTS:
+            result_payload["warnings"] = report_paths.get("warnings", [])
 
         save_run_result(
             run_id=run_id,
