@@ -3,6 +3,8 @@ from pathlib import Path
 
 from fastapi import HTTPException
 
+from .acquisition import ACQUISITION_ROOTS
+
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 
@@ -19,6 +21,8 @@ MANIFEST_PATHS = {
         / "due_diligence"
         / "manifest.json",
 }
+
+MANIFEST_PATHS.update({agent_id: root / "manifest.json" for agent_id, root in ACQUISITION_ROOTS.items()})
 
 
 def get_manifest(agent_id: str):
