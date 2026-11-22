@@ -1,9 +1,11 @@
 # ATL Research Service
 
-A FastAPI service that exposes two Deep Research agents to Agentic Trading Lab (ATL):
+A FastAPI service that exposes four Deep Research agents to Agentic Trading Lab (ATL):
 
 - `shell-company-screening`
 - `due-diligence-agent`
+- `acquisition-analysis-acquirer`
+- `acquisition-analysis-target-company`
 
 The service wraps the existing agent runtimes without changing their core research workflows. It provides authenticated HTTP endpoints, asynchronous run management, SQLite run state, CommonStack integration, and ATL v1.1 usage reporting.
 
@@ -53,6 +55,20 @@ due-diligence-agent
 ```
 
 This agent performs structured company due diligence using external research, source collection, evidence synthesis, and report generation.
+
+### Acquisition Analysis (Acquirer Side)
+
+Agent ID: `acquisition-analysis-acquirer`
+
+Assesses target value, synergies, financing, acquisition returns, risks, and offer strategy for the acquirer. Inputs and the nine-question list are defined in `agents/acquisition_analysis_acquirer/manifest.json`.
+
+### Acquisition Analysis (Target Company Side)
+
+Agent ID: `acquisition-analysis-target-company`
+
+Assesses an offer against standalone value and alternatives, including shareholder proceeds, payment quality, liquidity, and deal certainty. Inputs and the nine-question list are defined in `agents/acquisition_analysis_target_company/manifest.json`.
+
+Both acquisition agents use the existing task endpoints and the OpenAI/CommonStack configuration below. DOCX is optional; PDF export is disabled in the service adapter. Local service checks use simulated research responses; live acquisition research and deployment remain unverified.
 
 ## Environment Variables
 
