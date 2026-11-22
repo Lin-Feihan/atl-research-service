@@ -6,11 +6,13 @@ import os
 from pathlib import Path
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
+import httpx
 from fastapi.testclient import TestClient
+from openai import APITimeoutError
 from acquisition_runtime.output_handler import save_report
-from acquisition_runtime.providers import ResearchResult
+from acquisition_runtime.providers import OpenAIResearchProvider, ResearchResult
 
 ACQUIRER = "acquisition-analysis-acquirer"
 TARGET = "acquisition-analysis-target-company"
@@ -155,6 +157,21 @@ class IntegrationTests(unittest.TestCase):
         self.assertIn("Simulated research failure", status["error"])
         self.assertEqual(self.client.get("/runs/missing", headers=self.headers).status_code, 404)
         self.assertEqual(self.client.get("/runs/missing/result", headers=self.headers).status_code, 404)
+
+    def test_openai_api_timeout_is_reported_to_user(self):
+        fake_client = Mock()
+        fake_client.responses.create.side_effect = APITimeoutError(
+            request=httpx.Request("POST", "https://gateway.invalid/v1/responses")
+        )
+        provider = OpenAIResearchProvider(
+            "not-a-real-api-key", {"timeout_seconds": 1500}, client=fake_client
+        )
+        run_id = self.submit(ACQUIRER).json()["run_id"]
+        with patch.object(self.runner, "get_provider_for_agent", return_value=("commonstack", provider)):
+            self.runner.run_research(run_id)
+        status = self.client.get(f"/runs/{run_id}", headers=self.headers).json()
+        self.assertEqual(status["status"], "failed")
+        self.assertEqual(status["error"], "Research did not finish within 1500 seconds.")
 
     def test_gateway_configuration_for_both_agents(self):
         for agent_id in (ACQUIRER, TARGET):

@@ -92,6 +92,8 @@ class OpenAIResearchProvider:
         self.client = client
 
     def run(self, prompt):
+        from openai import APITimeoutError
+
         if self.client is None:
             from openai import OpenAI
             kwargs = {"api_key": self.api_key, "timeout": self.timeout, "max_retries": 0}
@@ -131,6 +133,8 @@ class OpenAIResearchProvider:
             result = parse_response(response, self.provider_name, self.model)
             result.metadata["requested_tools"] = tools
             return result
+        except APITimeoutError:
+            raise TimeoutError(f"Research did not finish within {int(self.timeout)} seconds.") from None
         except (RuntimeError, TimeoutError):
             raise
         except Exception as exc:
